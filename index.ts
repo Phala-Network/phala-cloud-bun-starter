@@ -50,7 +50,12 @@ serve({
     "/info": async (req) => {
       const client = new TappdClient();
       const result = await client.info();
-      return new Response(JSON.stringify(result));
+      result.tcb_info = JSON.parse(result.tcb_info);
+      return new Response(JSON.stringify(result), {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
     },
   },
 });
