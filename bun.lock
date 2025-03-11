@@ -4,7 +4,7 @@
     "": {
       "name": "phala-cloud-bun-starter",
       "dependencies": {
-        "@phala/dstack-sdk": "^0.1.10",
+        "@phala/dstack-sdk": "^0.1.11",
         "@solana/web3.js": "^1.98.0",
         "viem": "^2.23.5",
       },
@@ -25,7 +25,7 @@
 
     "@noble/hashes": ["@noble/hashes@1.7.1", "", {}, "sha512-B8XBPsn4vT/KJAGqDzbwztd+6Yte3P4V7iafm24bxgDe/mlRuK6xmWPuCNrKt2vDafZ8MfJLlchDG/vYafQEjQ=="],
 
-    "@phala/dstack-sdk": ["@phala/dstack-sdk@0.1.10", "", { "optionalDependencies": { "@noble/curves": "^1.8.1", "@solana/web3.js": "^1.98.0", "viem": "^2.21.0 <3.0.0" } }, "sha512-AtNmi3NW8jcnUTknib0H0ICNhwpKfO8yLw/8xL7qlQEvLsp4OoKU/UQA6GJUJQyFK9bmIJH51DR23Ns2Kr5O0Q=="],
+    "@phala/dstack-sdk": ["@phala/dstack-sdk@0.1.11", "", { "optionalDependencies": { "@noble/curves": "^1.8.1", "@solana/web3.js": "^1.98.0", "viem": "^2.21.0 <3.0.0" } }, "sha512-d1naX/bDGqCItpIzvvHSpytNR9zNPofYbsCJD7uy2zT+vDC5lLehqL2BeR1d7QVsnnNI0wXPiXTiMbwGS7fz0Q=="],
 
     "@scure/base": ["@scure/base@1.2.4", "", {}, "sha512-5Yy9czTO47mqz+/J8GM6GIId4umdCk1wc1q8rKERQulIoc8VP9pzDcghv10Tl2E7R96ZUx/PhND3ESYUQX8NuQ=="],
 
