@@ -9,7 +9,15 @@ serve({
   port,
 
   routes: {
-    "/": new Response("Hello DStack!"),
+    "/": async (req) => {
+      const client = new TappdClient();
+      const result = await client.info();
+      return new Response(JSON.stringify(result), {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    },
 
     "/tdx_quote": async (req) => {
       const client = new TappdClient();
@@ -45,16 +53,6 @@ serve({
       return new Response(JSON.stringify({
         address: solanaAccount.publicKey.toBase58(),
       }));
-    },
-
-    "/info": async (req) => {
-      const client = new TappdClient();
-      const result = await client.info();
-      return new Response(JSON.stringify(result), {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
     },
   },
 });
