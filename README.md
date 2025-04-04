@@ -61,4 +61,4 @@ sudo docker push leechael/phala-cloud-bun-starter
 
 ## Deploy
 
-You can copy and paste the `docker-compose.yml` file from this repo to see the example up and running.
+You can copy and paste the `docker-compose.yml` file from this repo to deploy to Phala Cloud, follow the [tutorial](https://docs.phala.network/phala-cloud/create-cvm/create-with-docker-compose) in the Phala Docs.
