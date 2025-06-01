@@ -6,3 +6,4 @@ services:
       - "3000:3000"
     volumes:
       - /var/run/tappd.sock:/var/run/tappd.sock
+      - /var/run/dstack.sock:/var/run/dstack.sock
