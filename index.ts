@@ -1,7 +1,7 @@
 import { serve } from "bun";
 import { TappdClient } from "@phala/dstack-sdk";
-import { toViemAccount } from '@phala/dstack-sdk/viem';
-import { toKeypair } from '@phala/dstack-sdk/solana';
+import { toViemAccountSecure } from '@phala/dstack-sdk/viem';
+import { toKeypairSecure } from '@phala/dstack-sdk/solana';
 
 const port = process.env.PORT || 3000;
 console.log(`Listening on port ${port}`);
@@ -40,7 +40,7 @@ serve({
     "/ethereum": async (req) => {
       const client = new TappdClient();
       const result = await client.deriveKey('ethereum');
-      const viemAccount = toViemAccount(result);
+      const viemAccount = toViemAccountSecure(result);
       return new Response(JSON.stringify({
         address: viemAccount.address,
       }));
@@ -49,7 +49,7 @@ serve({
     "/solana": async (req) => {
       const client = new TappdClient();
       const result = await client.deriveKey('solana');
-      const solanaAccount = toKeypair(result);
+      const solanaAccount = toKeypairSecure(result);
       return new Response(JSON.stringify({
         address: solanaAccount.publicKey.toBase58(),
       }));
