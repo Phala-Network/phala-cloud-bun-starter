@@ -1,0 +1,49 @@
+###
+# Phala Cloud Bun Starter - API Sample Requests
+# Make sure the development server is running on port 3000
+# Start with: bun run dev
+###
+
+### Get TCB Info of the hosted CVM
+GET http://127.0.0.1:3000/info
+Accept: application/json
+
+###
+
+### Generate TDX quote with reportdata "test"
+GET http://127.0.0.1:3000/tdx_quote
+Accept: application/json
+
+###
+
+### Generate TDX quote with reportdata "Hello DStack!" (raw format)
+# The difference from /tdx_quote is that you can see the raw text 
+# "Hello DStack!" in Attestation Explorer (https://proof.t16z.com/)
+GET http://127.0.0.1:3000/tdx_quote_raw
+Accept: application/json
+
+###
+
+### Basic example of the deriveKey API
+GET http://127.0.0.1:3000/derive_key
+Accept: application/json
+
+###
+
+### Generate deterministic Ethereum wallet using deriveKey API
+# Returns the Ethereum address for a wallet held by the TEE instance
+GET http://127.0.0.1:3000/ethereum
+Accept: application/json
+
+###
+
+### Generate deterministic Solana wallet using deriveKey API  
+# Returns the Solana address for a wallet held by the TEE instance
+GET http://127.0.0.1:3000/solana
+Accept: application/json
+
+###
+
+### Root endpoint (same as /info)
+GET http://127.0.0.1:3000/
+Accept: application/json
