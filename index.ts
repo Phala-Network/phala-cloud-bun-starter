@@ -1,7 +1,7 @@
 import { serve } from "bun";
-import { TappdClient } from "@phala/dstack-sdk";
-import { toViemAccountSecure } from '@phala/dstack-sdk/viem';
-import { toKeypairSecure } from '@phala/dstack-sdk/solana';
+import { DstackClient } from "@phala/dstack-sdk";
+import { toViemAccount } from '@phala/dstack-sdk/viem';
+import { toKeypair } from '@phala/dstack-sdk/solana';
 
 const port = process.env.PORT || 3000;
 console.log(`Listening on port ${port}`);
@@ -10,7 +10,7 @@ serve({
 
   routes: {
     "/": async (req) => {
-      const client = new TappdClient();
+      const client = new DstackClient();
       const result = await client.info();
       return new Response(JSON.stringify(result), {
         headers: {
@@ -19,37 +19,31 @@ serve({
       });
     },
 
-    "/tdx_quote": async (req) => {
-      const client = new TappdClient();
-      const result = await client.tdxQuote('test');
+    "/get_quote": async (req) => {
+      const client = new DstackClient();
+      const result = await client.getQuote('test');
       return new Response(JSON.stringify(result));
     },
 
-    "/tdx_quote_raw": async (req) => {
-      const client = new TappdClient();
-      const result = await client.tdxQuote('Hello DStack!', 'raw');
-      return new Response(JSON.stringify(result));
-    },
-
-    "/derive_key": async (req) => {
-      const client = new TappdClient();
-      const result = await client.deriveKey('test');
+    "/get_key": async (req) => {
+      const client = new DstackClient();
+      const result = await client.getKey('test');
       return new Response(JSON.stringify(result));
     },
 
     "/ethereum": async (req) => {
-      const client = new TappdClient();
-      const result = await client.deriveKey('ethereum');
-      const viemAccount = toViemAccountSecure(result);
+      const client = new DstackClient();
+      const result = await client.getKey('ethereum');
+      const viemAccount = toViemAccount(result);
       return new Response(JSON.stringify({
         address: viemAccount.address,
       }));
     },
 
     "/solana": async (req) => {
-      const client = new TappdClient();
-      const result = await client.deriveKey('solana');
-      const solanaAccount = toKeypairSecure(result);
+      const client = new DstackClient();
+      const result = await client.getKey('solana');
+      const solanaAccount = toKeypair(result);
       return new Response(JSON.stringify({
         address: solanaAccount.publicKey.toBase58(),
       }));
