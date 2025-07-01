@@ -13,7 +13,7 @@ contract AppAuthScript is Script {
     function setUp() public {}
 
     function run() public {
-        address initialOwner = vm.envAddress("INITIAL_OWNER");
+        address initialOwner = vm.envOr("INITIAL_OWNER", msg.sender);
         address appId = vm.envAddress("APP_ID");
         bool disableUpgrades = vm.envOr("DISABLE_UPGRADES", false);
         bool allowAnyDevice = vm.envOr("ALLOW_ANY_DEVICE", true);
@@ -22,6 +22,7 @@ contract AppAuthScript is Script {
 
         console.log("=== AppAuth Deployment Parameters ===");
         console.log("Initial Owner:", initialOwner);
+        console.log("Msg Sender:", msg.sender);
         console.log("App ID:", appId);
         console.log("Disable Upgrades:", disableUpgrades);
         console.log("Allow Any Device:", allowAnyDevice);
@@ -76,9 +77,9 @@ contract AppAuthScript is Script {
         console.log("Supports IERC165 (0x01ffc9a7):", appAuth.supportsInterface(0x01ffc9a7));
 
         console.log("\n=== Deployment Summary ===");
-        console.log("✅ AppAuth Implementation:", address(appAuthImpl));
-        console.log("✅ UUPS Proxy Address:", address(proxy));
-        console.log("✅ Ready for KMS Auth registration!");
+        console.log("AppAuth Implementation:", address(appAuthImpl));
+        console.log("UUPS Proxy Address:", address(proxy));
+        console.log("Ready for KMS Auth registration!");
         console.log("\nNext steps:");
         console.log("1. Register with KMS Auth:");
         console.log("   cast send $KMS_CONTRACT_ADDRESS 'registerApp(address)' %s --private-key $PRIVATE_KEY --rpc-url $RPC_URL", address(proxy));
