@@ -1,9 +1,10 @@
 services:
   app:
-    image: leechael/phala-cloud-bun-starter:latest
+    image: leechael/phala-cloud-bun-starter:0.5.0
     container_name: app
     ports:
       - "3000:3000"
     volumes:
-      - /var/run/tappd.sock:/var/run/tappd.sock
       - /var/run/dstack.sock:/var/run/dstack.sock
+    environment:
+      - APP_ID=${DSTACK_APP_ID}
