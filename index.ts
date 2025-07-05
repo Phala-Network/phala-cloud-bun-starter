@@ -6,75 +6,75 @@ import { serve } from "bun";
 const port = process.env.PORT || 3000;
 console.log(`Listening on port ${port}`);
 
+// Route handlers
+const routes = {
+  "/": async () => {
+    const client = new TappdClient();
+    const result = await client.info();
+    return new Response(JSON.stringify(result), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  },
+  "/info": async () => {
+    const client = new TappdClient();
+    const result = await client.info();
+    return new Response(JSON.stringify(result), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  },
+  "/tdx_quote": async () => {
+    const client = new TappdClient();
+    const result = await client.tdxQuote('test');
+    return new Response(JSON.stringify(result), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  },
+  "/tdx_quote_raw": async () => {
+    const client = new TappdClient();
+    const result = await client.tdxQuote('Hello DStack!', 'raw');
+    return new Response(JSON.stringify(result), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  },
+  "/derive_key": async () => {
+    const client = new TappdClient();
+    const result = await client.deriveKey('test');
+    return new Response(JSON.stringify(result), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  },
+  "/ethereum": async () => {
+    const client = new TappdClient();
+    const result = await client.deriveKey('ethereum');
+    const viemAccount = toViemAccountSecure(result);
+    return new Response(JSON.stringify({
+      address: viemAccount.address,
+    }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  },
+  "/solana": async () => {
+    const client = new TappdClient();
+    const result = await client.deriveKey('solana');
+    const solanaAccount = toKeypairSecure(result);
+    return new Response(JSON.stringify({
+      address: solanaAccount.publicKey.toBase58(),
+    }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  },
+} as const;
+
 serve({
   port,
-  fetch: async (req) => {
+  fetch: async (req: Request) => {
     const url = new URL(req.url);
+    const handler = routes[url.pathname as keyof typeof routes];
     
-    switch (url.pathname) {
-      case "/":
-      case "/info":
-        const client = new TappdClient();
-        const result = await client.info();
-        return new Response(JSON.stringify(result), {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-      case "/tdx_quote":
-        const client1 = new TappdClient();
-        const result1 = await client1.tdxQuote('test');
-        return new Response(JSON.stringify(result1), {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-      case "/tdx_quote_raw":
-        const client2 = new TappdClient();
-        const result2 = await client2.tdxQuote('Hello DStack!', 'raw');
-        return new Response(JSON.stringify(result2), {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-      case "/derive_key":
-        const client3 = new TappdClient();
-        const result3 = await client3.deriveKey('test');
-        return new Response(JSON.stringify(result3), {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-      case "/ethereum":
-        const client4 = new TappdClient();
-        const result4 = await client4.deriveKey('ethereum');
-        const viemAccount = toViemAccountSecure(result4);
-        return new Response(JSON.stringify({
-          address: viemAccount.address,
-        }), {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-      case "/solana":
-        const client5 = new TappdClient();
-        const result5 = await client5.deriveKey('solana');
-        const solanaAccount = toKeypairSecure(result5);
-        return new Response(JSON.stringify({
-          address: solanaAccount.publicKey.toBase58(),
-        }), {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-      default:
-        return new Response("Not Found", { status: 404 });
+    if (handler) {
+      return await handler();
     }
+    
+    return new Response("Not Found", { status: 404 });
   },
 });
