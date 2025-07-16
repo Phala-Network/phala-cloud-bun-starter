@@ -67,14 +67,61 @@ const routes = {
 
 serve({
   port,
-  fetch: async (req: Request) => {
-    const url = new URL(req.url);
-    const handler = routes[url.pathname as keyof typeof routes];
-    
-    if (handler) {
-      return await handler();
-    }
-    
-    return new Response("Not Found", { status: 404 });
+  routes: {
+    "/": async () => {
+      const client = new TappdClient();
+      const result = await client.info();
+      return new Response(JSON.stringify(result), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+    "/info": async () => {
+      const client = new TappdClient();
+      const result = await client.info();
+      return new Response(JSON.stringify(result), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+    "/tdx_quote": async () => {
+      const client = new TappdClient();
+      const result = await client.tdxQuote('test');
+      return new Response(JSON.stringify(result), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+    "/tdx_quote_raw": async () => {
+      const client = new TappdClient();
+      const result = await client.tdxQuote('Hello DStack!', 'raw');
+      return new Response(JSON.stringify(result), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+    "/derive_key": async () => {
+      const client = new TappdClient();
+      const result = await client.deriveKey('test');
+      return new Response(JSON.stringify(result), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+    "/ethereum": async () => {
+      const client = new TappdClient();
+      const result = await client.deriveKey('ethereum');
+      const viemAccount = toViemAccountSecure(result);
+      return new Response(JSON.stringify({
+        address: viemAccount.address,
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+    "/solana": async () => {
+      const client = new TappdClient();
+      const result = await client.deriveKey('solana');
+      const solanaAccount = toKeypairSecure(result);
+      return new Response(JSON.stringify({
+        address: solanaAccount.publicKey.toBase58(),
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
   },
 });
