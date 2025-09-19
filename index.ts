@@ -58,7 +58,11 @@ serve({
     },
 
     "/env": async () => {
-      return new Response(JSON.stringify(process.env));
+      return new Response(JSON.stringify(process.env), {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
     },
   },
 });
