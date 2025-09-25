@@ -22,6 +22,10 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
+      - name: Get lowercase repository name
+        id: repo_name
+        run: echo "REPO_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Get previous tag
         id: prev_tag
         run: |
@@ -61,12 +65,12 @@ jobs:
 
             Pull the Docker image for this release:
             ```bash
-            docker pull ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.VERSION }}
+            docker pull ghcr.io/${{ steps.repo_name.outputs.REPO_NAME }}:${{ steps.get_version.outputs.VERSION }}
             ```
 
             Or use the latest tag:
             ```bash
-            docker pull ghcr.io/${{ github.repository }}:latest
+            docker pull ghcr.io/${{ steps.repo_name.outputs.REPO_NAME }}:latest
             ```
 
             ## What's Changed
