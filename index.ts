@@ -27,6 +27,14 @@ serve({
       return new Response(JSON.stringify(result));
     },
 
+    "/tdx_quote": async (req: Request) => {
+      const url = new URL(req.url);
+      const text = url.searchParams.get('text') || 'hello dstack';
+      const client = new DstackClient();
+      const result = await client.getQuote(text);
+      return new Response(JSON.stringify(result));
+    },
+
     "/get_key": async (req: Request) => {
       const url = new URL(req.url);
       const key = url.searchParams.get('key') || 'dstack';
