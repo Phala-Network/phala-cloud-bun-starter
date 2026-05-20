@@ -2,6 +2,7 @@ import { serve } from "bun";
 import { DstackClient } from "@phala/dstack-sdk";
 import { toViemAccountSecure } from '@phala/dstack-sdk/viem';
 import { toKeypairSecure } from '@phala/dstack-sdk/solana';
+import { getComposeHash, type AppCompose } from '@phala/dstack-sdk/get-compose-hash';
 
 const port = process.env.PORT || 3000;
 const defaultHeaders = {
@@ -87,14 +88,124 @@ serve({
     "/get_key": async (req: Request) => {
       try {
         const url = new URL(req.url);
-        const key = url.searchParams.get('key') || 'dstack';
+        const path = url.searchParams.get('path') ?? url.searchParams.get('key') ?? undefined;
+        const purpose = url.searchParams.get('purpose') ?? '';
+        const algorithm = url.searchParams.get('algorithm') ?? 'secp256k1';
         const client = new DstackClient();
-        const result = await client.getKey(key);
+        const result = await client.getKey(path ?? '', purpose, algorithm);
         recordSuccess();
-        return jsonResponse(result);
+        return jsonResponse({
+          key: Buffer.from(result.key).toString('hex'),
+          signature_chain: result.signature_chain.map((s) => Buffer.from(s).toString('hex')),
+        });
       } catch (error) {
         recordFailure("get_key", error);
         return errorResponse(error, 503);
+      }
+    },
+
+    "/tls_key": async (req: Request) => {
+      try {
+        const url = new URL(req.url);
+        const subject = url.searchParams.get('subject') ?? '';
+        const altNamesParam = url.searchParams.get('alt_names');
+        const altNames = altNamesParam ? altNamesParam.split(',').filter(Boolean) : [];
+        const usageRaTls = url.searchParams.get('usage_ra_tls') === 'true';
+        const usageServerAuth = url.searchParams.get('usage_server_auth') !== 'false';
+        const usageClientAuth = url.searchParams.get('usage_client_auth') === 'true';
+        const notBefore = url.searchParams.get('not_before');
+        const notAfter = url.searchParams.get('not_after');
+        const withAppInfo = url.searchParams.get('with_app_info') === 'true';
+        const client = new DstackClient();
+        const result = await client.getTlsKey({
+          subject,
+          altNames,
+          usageRaTls,
+          usageServerAuth,
+          usageClientAuth,
+          ...(notBefore != null ? { notBefore: Number(notBefore) } : {}),
+          ...(notAfter != null ? { notAfter: Number(notAfter) } : {}),
+          ...(withAppInfo ? { withAppInfo: true } : {}),
+        });
+        recordSuccess();
+        return jsonResponse(result);
+      } catch (error) {
+        recordFailure("tls_key", error);
+        return errorResponse(error, 503);
+      }
+    },
+
+    "/attest": async (req: Request) => {
+      try {
+        const url = new URL(req.url);
+        const text = url.searchParams.get('text') || 'hello dstack';
+        const client = new DstackClient();
+        const result = await client.attest(text);
+        recordSuccess();
+        return jsonResponse(result);
+      } catch (error) {
+        recordFailure("attest", error);
+        return errorResponse(error, 503);
+      }
+    },
+
+    "/version": async () => {
+      try {
+        const client = new DstackClient();
+        const result = await client.version();
+        recordSuccess();
+        return jsonResponse(result);
+      } catch (error) {
+        recordFailure("version", error);
+        return errorResponse(error, 503);
+      }
+    },
+
+    "/reachable": async () => {
+      try {
+        const client = new DstackClient();
+        const ok = await client.isReachable();
+        return jsonResponse({ reachable: ok });
+      } catch (error) {
+        return errorResponse(error, 503);
+      }
+    },
+
+    "/emit_event": async (req: Request) => {
+      try {
+        const url = new URL(req.url);
+        const event = url.searchParams.get('event');
+        const payload = url.searchParams.get('payload') ?? '';
+        if (!event) {
+          return jsonResponse({ error: "missing required 'event' query param" }, { status: 400 });
+        }
+        const client = new DstackClient();
+        await client.emitEvent(event, payload);
+        recordSuccess();
+        return jsonResponse({ ok: true });
+      } catch (error) {
+        recordFailure("emit_event", error);
+        return errorResponse(error, 503);
+      }
+    },
+
+    "/compose_hash": async (req: Request) => {
+      try {
+        let compose: AppCompose;
+        if (req.method === 'POST') {
+          compose = await req.json() as AppCompose;
+        } else {
+          compose = {
+            manifest_version: 2,
+            name: 'example',
+            runner: 'docker-compose',
+            docker_compose_file: 'services:\n  app:\n    image: nginx:latest\n',
+          };
+        }
+        const hash = getComposeHash(compose);
+        return jsonResponse({ compose_hash: hash });
+      } catch (error) {
+        return errorResponse(error, 400);
       }
     },
 
