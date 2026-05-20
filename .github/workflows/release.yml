@@ -1,79 +1,293 @@
-name: Create Release
+name: release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      ref:
+        description: 'git ref/branch/sha to release from (optional)'
+        required: false
+        default: 'main'
+        type: string
+  issue_comment:
+    types: [created]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  create-release:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    outputs:
+      should_release: ${{ steps.parse.outputs.should_release }}
+      bump: ${{ steps.parse.outputs.bump }}
+      target_sha: ${{ steps.parse.outputs.target_sha }}
+      source: ${{ steps.parse.outputs.source }}
+      repo_lower: ${{ steps.parse.outputs.repo_lower }}
+    steps:
+      - name: parse trigger
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const eventName = context.eventName
+            let shouldRelease = false
+            let bump = ''
+            let targetSha = ''
+            let source = eventName
+
+            if (eventName === 'workflow_dispatch') {
+              shouldRelease = true
+              bump = (context.payload.inputs?.bump || '').toLowerCase()
+              targetSha = context.payload.inputs?.ref || context.ref.replace('refs/heads/', '')
+            }
+
+            if (eventName === 'issue_comment') {
+              const body = (context.payload.comment?.body || '').trim()
+              const match = body.match(/^!release\s+(patch|minor|major)$/i)
+              const assoc = context.payload.comment?.author_association || 'NONE'
+              const allowed = ['OWNER', 'MEMBER', 'COLLABORATOR']
+
+              if (match && context.payload.issue?.pull_request && allowed.includes(assoc)) {
+                const prNumber = context.payload.issue.number
+                const pr = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber,
+                })
+                shouldRelease = true
+                bump = match[1].toLowerCase()
+                targetSha = pr.data.head.sha
+                source = `pr#${prNumber}`
+              }
+            }
+
+            core.setOutput('should_release', shouldRelease ? 'true' : 'false')
+            core.setOutput('bump', bump)
+            core.setOutput('target_sha', targetSha)
+            core.setOutput('source', source)
+            core.setOutput('repo_lower', `${context.repo.owner.toLowerCase()}/${context.repo.repo.toLowerCase()}`)
+
+  create-tag:
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: read
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      previous_tag: ${{ steps.version.outputs.previous_tag }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
-      - name: Checkout code
+      - name: checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ needs.prepare.outputs.target_sha }}
           fetch-depth: 0
 
-      - name: Get the version
-        id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: fetch tags
+        run: git fetch --tags --force
 
-      - name: Get lowercase repository name
-        id: repo_name
-        run: echo "REPO_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      - name: Get previous tag
-        id: prev_tag
+      - name: compute next version
+        id: version
+        shell: bash
         run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          echo "PREV_TAG=${PREV_TAG}" >> $GITHUB_OUTPUT
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          if [ -z "${{ steps.prev_tag.outputs.PREV_TAG }}" ]; then
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
-          else
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${{ steps.prev_tag.outputs.PREV_TAG }}..HEAD)
+          set -euo pipefail
+          latest=$(git tag -l 'v*' --sort=-v:refname | head -n1 || true)
+          if [ -z "$latest" ]; then
+            latest="v0.0.0"
           fi
-          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Wait for Docker build
+          raw="${latest#v}"
+          IFS='.' read -r major minor patch <<< "$raw"
+          bump="${{ needs.prepare.outputs.bump }}"
+
+          case "$bump" in
+            patch)
+              patch=$((patch + 1))
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            *)
+              echo "invalid bump: $bump" >&2
+              exit 1
+              ;;
+          esac
+
+          next="v${major}.${minor}.${patch}"
+          if git rev-parse "$next" >/dev/null 2>&1; then
+            echo "tag already exists: $next" >&2
+            exit 1
+          fi
+
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: generate changelog
+        id: changelog
+        shell: bash
         run: |
-          echo "Waiting for Docker image to be built..."
-          sleep 30
+          set -euo pipefail
+          prev="${{ steps.version.outputs.previous_tag }}"
+          if [ "$prev" = "v0.0.0" ] && [ -z "$(git tag -l 'v*')" ]; then
+            log=$(git log --pretty=format:'- %s (%h)')
+          else
+            log=$(git log --pretty=format:'- %s (%h)' "${prev}"..HEAD)
+          fi
+          if [ -z "$log" ]; then
+            log='- no user-facing changes'
+          fi
+          {
+            echo 'changelog<<EOF'
+            echo "$log"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: create and push tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$version" -m "release $version"
+          git push origin "$version"
+
+  build-and-push:
+    needs: create-tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: checkout release tag
+        uses: actions/checkout@v4
         with:
-          tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: Release ${{ steps.get_version.outputs.VERSION }}
+          ref: refs/tags/${{ needs.create-tag.outputs.version }}
+
+      - name: set up docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: login to ghcr
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: set image tags
+        id: img
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo_name=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          repo="${{ env.REGISTRY }}/${repo_name}"
+          version="${{ needs.create-tag.outputs.version }}"
+          echo "tags=${repo}:${version},${repo}:latest" >> "$GITHUB_OUTPUT"
+
+      - name: build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.img.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  create-release:
+    needs: [prepare, create-tag, build-and-push]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: create github release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-tag.outputs.version }}
+          name: Release ${{ needs.create-tag.outputs.version }}
           body: |
-            ## Changes in this Release
+            ## changelog
 
-            ${{ steps.changelog.outputs.CHANGELOG }}
+            ${{ needs.create-tag.outputs.changelog }}
 
-            ## Docker Image
+            ## docker image
 
-            Pull the Docker image for this release:
             ```bash
-            docker pull ghcr.io/${{ steps.repo_name.outputs.REPO_NAME }}:${{ steps.get_version.outputs.VERSION }}
+            docker pull ghcr.io/${{ needs.prepare.outputs.repo_lower }}:${{ needs.create-tag.outputs.version }}
             ```
 
-            Or use the latest tag:
-            ```bash
-            docker pull ghcr.io/${{ steps.repo_name.outputs.REPO_NAME }}:latest
-            ```
+            latest alias:
 
-            ## What's Changed
-            **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.prev_tag.outputs.PREV_TAG }}...${{ steps.get_version.outputs.VERSION }}
-          draft: false
-          prerelease: ${{ contains(steps.get_version.outputs.VERSION, '-rc') || contains(steps.get_version.outputs.VERSION, '-beta') || contains(steps.get_version.outputs.VERSION, '-alpha') }}
+            ```bash
+            docker pull ghcr.io/${{ needs.prepare.outputs.repo_lower }}:latest
+            ```
+          make_latest: false
+
+  post-release:
+    needs: [prepare, create-tag, create-release]
+    if: needs.prepare.outputs.source == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: update docker-compose.yml image tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.create-tag.outputs.version }}"
+          repo_lower="${{ needs.prepare.outputs.repo_lower }}"
+          sed -i "s|image: .*|image: ghcr.io/${repo_lower}:${version}|" docker-compose.yml
+
+      - name: update CHANGELOG.md
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.create-tag.outputs.version }}"
+          date=$(date -u +%Y-%m-%d)
+          changelog="${{ needs.create-tag.outputs.changelog }}"
+
+          header="## ${version} (${date})"
+          new_entry="$(printf '%s\n\n%s\n' "$header" "$changelog")"
+
+          if [ -f CHANGELOG.md ]; then
+            printf '%s\n\n%s\n' "$new_entry" "$(cat CHANGELOG.md)" > CHANGELOG.md
+          else
+            printf '# Changelog\n\n%s\n' "$new_entry" > CHANGELOG.md
+          fi
+
+      - name: commit and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.create-tag.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docker-compose.yml CHANGELOG.md
+          git commit -m "chore(release): update docker-compose.yml and CHANGELOG.md for ${version}"
+          git push origin main
