@@ -1,3 +1,7 @@
+## v1.1.4 (2026-06-02)
+
+- chore(release): update docker-compose.yml and CHANGELOG.md for v1.1.3 (f5edb82)
+
 # Changelog
 
 ## v1.1.3 (2026-06-02)
