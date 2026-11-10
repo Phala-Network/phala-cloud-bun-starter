@@ -41,7 +41,14 @@ Once the simulator is running, you need to open another terminal to start your B
 bun run dev
 ```
 
-By default, the Bun development server will listen on port 3000. Open http://127.0.0.1:3000/tdx_quote in your browser to get the quote with reportdata `test`.
+By default, the Bun development server will listen on port 3000. Open http://127.0.0.1:3000/tdx_quote in your browser to get a quote.
+
+`/get_quote` and `/tdx_quote` never put caller input into TDX `report_data` raw.
+They hash it as `sha512("app-data:" || utf8(text))` (the dstack `AppData` tag),
+so the quote cannot be reused as an RA-TLS client certificate. The JSON response
+includes `user_input`, `report_data_hex`, and `report_data_derivation` so a
+verifier can recompute the digest. Pass `?text=` to choose the input; default is
+`hello dstack`.
 
 This repo also includes code snippets for the following common use cases:
 
