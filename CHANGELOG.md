@@ -1,3 +1,11 @@
+## v1.2.0 (2026-11-10)
+
+- Merge pull request #9 from Phala-Network/fix/hash-quote-report-data (a2cc45e)
+- fix: hash quote report_data under the app-data tag (d2bc46f)
+- Merge pull request #8 from Phala-Network/chore/update-bun-and-deps (e20f581)
+- chore(deps): bump packages and pin bun 1.4.4 (811ed4e)
+- chore(release): update docker-compose.yml and CHANGELOG.md for v1.1.4 (e18421e)
+
 ## v1.1.4 (2026-06-02)
 
 - chore(release): update docker-compose.yml and CHANGELOG.md for v1.1.3 (f5edb82)
