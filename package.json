@@ -13,9 +13,9 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@noble/hashes": "^1.6.1",
+    "@noble/hashes": "^1.8.0",
     "@phala/dstack-sdk": "^0.5.8",
-    "@solana/web3.js": "^1.98.4",
-    "viem": "^2.43.3"
+    "@solana/web3.js": "^1.99.0",
+    "viem": "^2.57.17"
   }
 }
