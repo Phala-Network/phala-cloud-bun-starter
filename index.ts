@@ -1,8 +1,16 @@
 import { serve } from "bun";
+import { createHash } from "node:crypto";
 import { DstackClient } from "@phala/dstack-sdk";
 import { toViemAccountSecure } from '@phala/dstack-sdk/viem';
 import { toKeypairSecure } from '@phala/dstack-sdk/solana';
 import { getComposeHash, type AppCompose } from '@phala/dstack-sdk/get-compose-hash';
+
+const REPORT_DATA_TAG = "app-data";
+const REPORT_DATA_DERIVATION = 'sha512("app-data:" || utf8(user_input))';
+
+function appDataReportData(input: string): Buffer {
+  return createHash("sha512").update(REPORT_DATA_TAG).update(":").update(input).digest();
+}
 
 const port = process.env.PORT || 3000;
 const defaultHeaders = {
@@ -61,10 +69,17 @@ serve({
       try {
         const url = new URL(req.url);
         const text = url.searchParams.get('text') || 'hello dstack';
+        const reportData = appDataReportData(text);
         const client = new DstackClient();
-        const result = await client.getQuote(text);
+        const result = await client.getQuote(reportData);
         recordSuccess();
-        return jsonResponse(result);
+        return jsonResponse({
+          ...result,
+          user_input: text,
+          report_data_tag: REPORT_DATA_TAG,
+          report_data_hex: reportData.toString("hex"),
+          report_data_derivation: REPORT_DATA_DERIVATION,
+        });
       } catch (error) {
         recordFailure("get_quote", error);
         return errorResponse(error, 503);
@@ -75,10 +90,17 @@ serve({
       try {
         const url = new URL(req.url);
         const text = url.searchParams.get('text') || 'hello dstack';
+        const reportData = appDataReportData(text);
         const client = new DstackClient();
-        const result = await client.getQuote(text);
+        const result = await client.getQuote(reportData);
         recordSuccess();
-        return jsonResponse(result);
+        return jsonResponse({
+          ...result,
+          user_input: text,
+          report_data_tag: REPORT_DATA_TAG,
+          report_data_hex: reportData.toString("hex"),
+          report_data_derivation: REPORT_DATA_DERIVATION,
+        });
       } catch (error) {
         recordFailure("tdx_quote", error);
         return errorResponse(error, 503);
