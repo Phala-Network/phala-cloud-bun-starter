@@ -25,7 +25,7 @@ env:
 
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       pull-requests: read
@@ -39,7 +39,7 @@ jobs:
     steps:
       - name: parse trigger
         id: parse
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const eventName = context.eventName
@@ -83,7 +83,7 @@ jobs:
   create-tag:
     needs: prepare
     if: needs.prepare.outputs.should_release == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     outputs:
@@ -92,7 +92,7 @@ jobs:
       changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.target_sha }}
           fetch-depth: 0
@@ -174,21 +174,21 @@ jobs:
 
   build-and-push:
     needs: create-tag
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
     steps:
       - name: checkout release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: refs/tags/${{ needs.create-tag.outputs.version }}
 
       - name: set up docker buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: login to ghcr
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -205,7 +205,7 @@ jobs:
           echo "tags=${repo}:${version},${repo}:latest" >> "$GITHUB_OUTPUT"
 
       - name: build and push image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64
@@ -216,12 +216,12 @@ jobs:
 
   create-release:
     needs: [prepare, create-tag, build-and-push]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - name: create github release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.create-tag.outputs.version }}
           name: Release ${{ needs.create-tag.outputs.version }}
@@ -246,12 +246,12 @@ jobs:
   post-release:
     needs: [prepare, create-tag, create-release]
     if: needs.prepare.outputs.source == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
