@@ -19,21 +19,13 @@ bun i
 cp env.example .env
 ```
 
-This starter uses the frozen v0 guest API (`DstackClientV0` from `@phala/dstack-sdk` 0.6.0). There is no published `simulator-v*` GitHub release; build the simulator from source at tag `js-sdk-v0.6.0` of [dstack](https://github.com/Dstack-TEE/dstack). Its `dstack.sock` serves both v0 routes (`/GetKey`, `/Info`, …) and `/v1/…`.
+This starter uses the frozen v0 guest API (`DstackClientV0` from `@phala/dstack-sdk` 0.6.0). Local development needs a running dstack guest-agent simulator (Linux). See [sdk/simulator](https://github.com/Dstack-TEE/dstack/tree/next/sdk/simulator).
 
-Prerequisites: Rust 1.92 and Cargo ([rustup](https://rustup.rs/)).
-
-```shell
-git clone --depth 1 --branch js-sdk-v0.6.0 https://github.com/Dstack-TEE/dstack.git
-cd dstack/sdk/simulator
-./build.sh
-./dstack-simulator
-```
-
-The process creates `dstack.sock` in that directory. In another terminal, set the absolute path in `.env` (see `env.example`) or export it:
+Point the SDK at it with `DSTACK_SIMULATOR_ENDPOINT` — a unix socket path, or an `http://` / `https://` URL (the v0 client accepts both). Set it in `.env` (see `env.example`) or export it:
 
 ```shell
-export DSTACK_SIMULATOR_ENDPOINT=/absolute/path/to/dstack/sdk/simulator/dstack.sock
+export DSTACK_SIMULATOR_ENDPOINT=/path/to/dstack.sock
+# or: export DSTACK_SIMULATOR_ENDPOINT=http://127.0.0.1:8090
 ```
 
 Then start the Bun development server:
