@@ -19,23 +19,24 @@ bun i
 cp env.example .env
 ```
 
-We also need to download the DStack simulator:
+This starter uses the frozen v0 guest API (`DstackClientV0` from `@phala/dstack-sdk` 0.6.0). There is no published `simulator-v*` GitHub release; build the simulator from source at tag `js-sdk-v0.6.0` of [dstack](https://github.com/Dstack-TEE/dstack). Its `dstack.sock` serves both v0 routes (`/GetKey`, `/Info`, …) and `/v1/…`.
+
+Prerequisites: Rust 1.92 and Cargo ([rustup](https://rustup.rs/)).
 
 ```shell
-# Mac
-wget https://github.com/Leechael/tappd-simulator/releases/download/v0.1.4/tappd-simulator-0.1.4-aarch64-apple-darwin.tgz
-tar -xvf tappd-simulator-0.1.4-aarch64-apple-darwin.tgz
-cd tappd-simulator-0.1.4-aarch64-apple-darwin
-./tappd-simulator -l unix:/tmp/tappd.sock
-
-# Linux
-wget https://github.com/Leechael/tappd-simulator/releases/download/v0.1.4/tappd-simulator-0.1.4-x86_64-linux-musl.tgz
-tar -xvf tappd-simulator-0.1.4-x86_64-linux-musl.tgz
-cd tappd-simulator-0.1.4-x86_64-linux-musl
-./tappd-simulator -l unix:/tmp/tappd.sock
+git clone --depth 1 --branch js-sdk-v0.6.0 https://github.com/Dstack-TEE/dstack.git
+cd dstack/sdk/simulator
+./build.sh
+./dstack-simulator
 ```
 
-Once the simulator is running, you need to open another terminal to start your Bun development server:
+The process creates `dstack.sock` in that directory. In another terminal, set the absolute path in `.env` (see `env.example`) or export it:
+
+```shell
+export DSTACK_SIMULATOR_ENDPOINT=/absolute/path/to/dstack/sdk/simulator/dstack.sock
+```
+
+Then start the Bun development server:
 
 ```shell
 bun run dev
@@ -52,12 +53,10 @@ verifier can recompute the digest. Pass `?text=` to choose the input; default is
 
 This repo also includes code snippets for the following common use cases:
 
-- `/tdx_quote`: The `reportdata` is `test` and generates the quote for attestation report via `tdxQuote` API.
-- `/tdx_quote_raw`: The `reportdata` is `Hello DStack!` and generates the quote for attestation report. The difference from `/tdx_quote` is that you can see the raw text `Hello DStack!` in [Attestation Explorer](https://proof.t16z.com/).
-- `/derive_key`: Basic example of the `deriveKey` API.
-- `/ethereum`: Using the `deriveKey` API to generate a deterministic wallet for Ethereum, a.k.a. a wallet held by the TEE instance.
-- `/solana`: Using the `deriveKey` API to generate a deterministic wallet for Solana, a.k.a. a wallet held by the TEE instance.
-- `/info`: Returns the TCB Info of the hosted CVM.
+- `/get_quote` and `/tdx_quote`: `getQuote` on `DstackClientV0`.
+- `/get_key`: `getKey` on `DstackClientV0`.
+- `/ethereum` and `/solana`: deterministic wallets from `getKey` plus `toViemAccountSecure` / `toKeypairSecure`.
+- `/`: `info()` on `DstackClientV0`.
 
 ## Build
 
