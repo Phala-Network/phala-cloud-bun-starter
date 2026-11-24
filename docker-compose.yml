@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/phala-network/phala-cloud-bun-starter:v1.2.0
+    image: ghcr.io/phala-network/phala-cloud-bun-starter:v1.3.0
     restart: unless-stopped
     ports:
       - "80:3000"
