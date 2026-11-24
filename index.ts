@@ -1,6 +1,6 @@
 import { serve } from "bun";
 import { createHash } from "node:crypto";
-import { DstackClient } from "@phala/dstack-sdk";
+import { DstackClientV0 } from "@phala/dstack-sdk";
 import { toViemAccountSecure } from '@phala/dstack-sdk/viem';
 import { toKeypairSecure } from '@phala/dstack-sdk/solana';
 import { getComposeHash, type AppCompose } from '@phala/dstack-sdk/get-compose-hash';
@@ -55,7 +55,7 @@ serve({
   routes: {
     "/": async () => {
       try {
-        const client = new DstackClient();
+        const client = new DstackClientV0();
         const result = await client.info();
         recordSuccess();
         return jsonResponse(result);
@@ -70,7 +70,7 @@ serve({
         const url = new URL(req.url);
         const text = url.searchParams.get('text') || 'hello dstack';
         const reportData = appDataReportData(text);
-        const client = new DstackClient();
+        const client = new DstackClientV0();
         const result = await client.getQuote(reportData);
         recordSuccess();
         return jsonResponse({
@@ -91,7 +91,7 @@ serve({
         const url = new URL(req.url);
         const text = url.searchParams.get('text') || 'hello dstack';
         const reportData = appDataReportData(text);
-        const client = new DstackClient();
+        const client = new DstackClientV0();
         const result = await client.getQuote(reportData);
         recordSuccess();
         return jsonResponse({
@@ -113,7 +113,7 @@ serve({
         const path = url.searchParams.get('path') ?? url.searchParams.get('key') ?? undefined;
         const purpose = url.searchParams.get('purpose') ?? '';
         const algorithm = url.searchParams.get('algorithm') ?? 'secp256k1';
-        const client = new DstackClient();
+        const client = new DstackClientV0();
         const result = await client.getKey(path ?? '', purpose, algorithm);
         recordSuccess();
         return jsonResponse({
@@ -138,7 +138,7 @@ serve({
         const notBefore = url.searchParams.get('not_before');
         const notAfter = url.searchParams.get('not_after');
         const withAppInfo = url.searchParams.get('with_app_info') === 'true';
-        const client = new DstackClient();
+        const client = new DstackClientV0();
         const result = await client.getTlsKey({
           subject,
           altNames,
@@ -161,7 +161,7 @@ serve({
       try {
         const url = new URL(req.url);
         const text = url.searchParams.get('text') || 'hello dstack';
-        const client = new DstackClient();
+        const client = new DstackClientV0();
         const result = await client.attest(text);
         recordSuccess();
         return jsonResponse(result);
@@ -173,7 +173,7 @@ serve({
 
     "/version": async () => {
       try {
-        const client = new DstackClient();
+        const client = new DstackClientV0();
         const result = await client.version();
         recordSuccess();
         return jsonResponse(result);
@@ -185,7 +185,7 @@ serve({
 
     "/reachable": async () => {
       try {
-        const client = new DstackClient();
+        const client = new DstackClientV0();
         const ok = await client.isReachable();
         return jsonResponse({ reachable: ok });
       } catch (error) {
@@ -201,7 +201,7 @@ serve({
         if (!event) {
           return jsonResponse({ error: "missing required 'event' query param" }, { status: 400 });
         }
-        const client = new DstackClient();
+        const client = new DstackClientV0();
         await client.emitEvent(event, payload);
         recordSuccess();
         return jsonResponse({ ok: true });
@@ -235,7 +235,7 @@ serve({
       try {
         const url = new URL(req.url);
         const key = url.searchParams.get('key') || 'dstack';
-        const client = new DstackClient();
+        const client = new DstackClientV0();
         const result = await client.getKey(key);
         const viemAccount = toViemAccountSecure(result);
         recordSuccess();
@@ -252,7 +252,7 @@ serve({
       try {
         const url = new URL(req.url);
         const key = url.searchParams.get('key') || 'dstack';
-        const client = new DstackClient();
+        const client = new DstackClientV0();
         const result = await client.getKey(key);
         const solanaAccount = toKeypairSecure(result);
         recordSuccess();
@@ -271,7 +271,7 @@ serve({
 
     "/healthz": async () => {
       try {
-        const client = new DstackClient();
+        const client = new DstackClientV0();
         await client.info();
         recordSuccess();
         return jsonResponse({ ok: true });
