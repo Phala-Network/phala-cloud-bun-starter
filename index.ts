@@ -1,6 +1,8 @@
 import { serve } from "bun";
 import { createHash } from "node:crypto";
-import { DstackClientV0 } from "@phala/dstack-sdk";
+import { DstackClient, DstackClientV0 } from "@phala/dstack-sdk";
+import { privateKeyToAccount } from 'viem/accounts';
+import { Keypair } from '@solana/web3.js';
 import { toViemAccountSecure } from '@phala/dstack-sdk/viem';
 import { toKeypairSecure } from '@phala/dstack-sdk/solana';
 import { getComposeHash, type AppCompose } from '@phala/dstack-sdk/get-compose-hash';
@@ -10,6 +12,15 @@ const REPORT_DATA_DERIVATION = 'sha512("app-data:" || utf8(user_input))';
 
 function appDataReportData(input: string): Buffer {
   return createHash("sha512").update(REPORT_DATA_TAG).update(":").update(input).digest();
+}
+
+function hex(bytes: Uint8Array): string {
+  return Buffer.from(bytes).toString("hex");
+}
+
+// v1 requires an explicit algorithm; there is no default.
+function parseAlgorithm(value: string | null): "secp256k1" | "ed25519" | null {
+  return value === "secp256k1" || value === "ed25519" ? value : null;
 }
 
 const port = process.env.PORT || 3000;
@@ -53,7 +64,171 @@ serve({
   idleTimeout: 30,
 
   routes: {
+    // ---- dstack guest API v1 (current; needs dstack OS >= 0.6.0) ----
+
     "/": async () => {
+      return jsonResponse({
+        v1: {
+          note: "dstack guest API v1, needs dstack OS >= 0.6.0",
+          routes: [
+            "/v1/info",
+            "/v1/version",
+            "/v1/key?domain=<string>&algorithm=secp256k1|ed25519",
+            "/v1/attest?text=<string>",
+            "/v1/tls_key",
+            "/v1/ethereum?domain=<string>",
+            "/v1/solana?domain=<string>",
+          ],
+        },
+        legacy_v0: {
+          note: "deprecated guest API v0; v0 keys differ from v1 keys",
+          routes: [
+            "/info",
+            "/get_quote",
+            "/tdx_quote",
+            "/get_key",
+            "/tls_key",
+            "/attest",
+            "/version",
+            "/emit_event",
+            "/ethereum",
+            "/solana",
+          ],
+        },
+        other: ["/reachable", "/compose_hash", "/env", "/healthz"],
+      });
+    },
+
+    "/v1/info": async () => {
+      try {
+        const client = new DstackClient();
+        const { __name__, app_id, compose_hash, instance_id, device_id, os_image_hash, mr_aggregated, ...rest } =
+          await client.info();
+        recordSuccess();
+        return jsonResponse({
+          ...rest,
+          app_id: hex(app_id),
+          compose_hash: hex(compose_hash),
+          instance_id: hex(instance_id),
+          device_id: hex(device_id),
+          os_image_hash: hex(os_image_hash),
+          mr_aggregated: hex(mr_aggregated),
+        });
+      } catch (error) {
+        recordFailure("v1/info", error);
+        return errorResponse(error, 503);
+      }
+    },
+
+    "/v1/version": async () => {
+      try {
+        const client = new DstackClient();
+        const { version, rev } = await client.version();
+        recordSuccess();
+        return jsonResponse({ version, rev });
+      } catch (error) {
+        recordFailure("v1/version", error);
+        return errorResponse(error, 503);
+      }
+    },
+
+    "/v1/key": async (req: Request) => {
+      const url = new URL(req.url);
+      const domain = url.searchParams.get('domain') ?? '';
+      const algorithm = parseAlgorithm(url.searchParams.get('algorithm'));
+      if (!algorithm) {
+        return jsonResponse({ error: "'algorithm' query param must be secp256k1 or ed25519" }, { status: 400 });
+      }
+      try {
+        const client = new DstackClient();
+        const result = await client.getKey(domain, algorithm);
+        recordSuccess();
+        return jsonResponse({
+          key: hex(result.key),
+          public_key: hex(result.public_key),
+          signature_chain: result.signature_chain.map(hex),
+          root_epoch: result.root_epoch,
+          app_epoch: result.app_epoch,
+        });
+      } catch (error) {
+        recordFailure("v1/key", error);
+        return errorResponse(error, 503);
+      }
+    },
+
+    "/v1/attest": async (req: Request) => {
+      try {
+        const url = new URL(req.url);
+        const text = url.searchParams.get('text') || 'hello dstack';
+        const reportData = appDataReportData(text);
+        const client = new DstackClient();
+        const result = await client.attest(reportData);
+        recordSuccess();
+        return jsonResponse({
+          attestation: hex(result.attestation),
+          user_input: text,
+          report_data_tag: REPORT_DATA_TAG,
+          report_data_hex: reportData.toString("hex"),
+          report_data_derivation: REPORT_DATA_DERIVATION,
+        });
+      } catch (error) {
+        recordFailure("v1/attest", error);
+        return errorResponse(error, 503);
+      }
+    },
+
+    "/v1/tls_key": async (req: Request) => {
+      try {
+        const url = new URL(req.url);
+        const subject = url.searchParams.get('subject') ?? '';
+        const altNamesParam = url.searchParams.get('alt_names');
+        const altNames = altNamesParam ? altNamesParam.split(',').filter(Boolean) : [];
+        const usageRaTls = url.searchParams.get('usage_ra_tls') === 'true';
+        const client = new DstackClient();
+        const { key, certificate_chain } = await client.issueCert({ subject, altNames, usageRaTls });
+        recordSuccess();
+        return jsonResponse({ key, certificate_chain });
+      } catch (error) {
+        recordFailure("v1/tls_key", error);
+        return errorResponse(error, 503);
+      }
+    },
+
+    "/v1/ethereum": async (req: Request) => {
+      try {
+        const url = new URL(req.url);
+        const domain = url.searchParams.get('domain') || 'dstack';
+        const client = new DstackClient();
+        const result = await client.getKey(domain, 'secp256k1');
+        const account = privateKeyToAccount(`0x${hex(result.key)}`);
+        recordSuccess();
+        return jsonResponse({ address: account.address });
+      } catch (error) {
+        recordFailure("v1/ethereum", error);
+        return errorResponse(error, 503);
+      }
+    },
+
+    "/v1/solana": async (req: Request) => {
+      try {
+        const url = new URL(req.url);
+        const domain = url.searchParams.get('domain') || 'dstack';
+        const client = new DstackClient();
+        const result = await client.getKey(domain, 'ed25519');
+        const keypair = Keypair.fromSeed(result.key);
+        recordSuccess();
+        return jsonResponse({ address: keypair.publicKey.toBase58() });
+      } catch (error) {
+        recordFailure("v1/solana", error);
+        return errorResponse(error, 503);
+      }
+    },
+
+    // ---- Legacy: dstack guest API v0 (deprecated, frozen) ----
+    // v0 and v1 derive different keys for the same name. Apps that already
+    // published v0-derived keys or addresses must stay on DstackClientV0.
+
+    "/info": async () => {
       try {
         const client = new DstackClientV0();
         const result = await client.info();

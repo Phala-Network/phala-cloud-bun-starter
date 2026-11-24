@@ -1,3 +1,9 @@
+## Unreleased
+
+- feat: add dstack guest API v1 routes under `/v1/` (info, version, key, attest, tls_key, ethereum, solana); needs dstack OS >= 0.6.0
+- feat: `/` now lists v1 routes first and marks the v0 routes as legacy
+- refactor: move the v0 info route from `/` to `/info`; all other v0 routes are unchanged
+
 ## v1.2.0 (2026-11-10)
 
 - Merge pull request #9 from Phala-Network/fix/hash-quote-report-data (a2cc45e)
