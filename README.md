@@ -52,6 +52,8 @@ This repo also includes code snippets for the following common use cases (v1):
 - `/v1/ethereum`: secp256k1 `getKey` bytes into viem `privateKeyToAccount`.
 - `/v1/solana`: ed25519 `getKey` bytes (32-byte seed) into `Keypair.fromSeed`.
 
+Do not hold assets in a wallet derived from `getKey`: the key is a function of the KMS root, so these wallets suit demos and low-value or rotatable signing only. See the [dstack SDK warning](https://github.com/Dstack-TEE/dstack/blob/next/sdk/js/README.md#blockchain-helpers).
+
 `/` lists all routes.
 
 ## Legacy v0 routes
